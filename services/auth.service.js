@@ -2,6 +2,8 @@ const bcrypt = require("bcrypt");
 const db = require("../config/db");
 const authModel = require("../models/auth.model");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const otpStore = new Map();
 
 const signup = async (data) => {
   const { email, fname, lname, phone, password, contacts } = data;
@@ -86,9 +88,47 @@ const login = async (email, password) => {
   };
 };
 
+const sendOtp = async (email, payload) => {
+  const otp = Math.floor(100000 + Math.random() * 900000);
+
+  otpStore.set(email, {
+    otp,
+    payload,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+  });
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    to: email,
+    subject: "Your OTP Code",
+    text: `Your OTP is ${otp}. It expires in 5 minutes.`,
+  });
+};
+
+const verifyOtpAndSignup = async (email, otp) => {
+  const record = otpStore.get(email);
+
+  if (!record) throw new Error("OTP not found");
+  if (Date.now() > record.expiresAt) throw new Error("OTP expired");
+  if (Number(otp) !== record.otp) throw new Error("Invalid OTP");
+
+  // 🔥 THIS REUSES YOUR EXISTING SIGNUP LOGIC
+  await signup(record.payload);
+
+  otpStore.delete(email);
+};
 
 
 module.exports = {
   signup,
   login,
+  sendOtp,
+  verifyOtpAndSignup
 };
