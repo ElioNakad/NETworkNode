@@ -1,13 +1,21 @@
 const descriptionService = require("../services/description.service");
 
 exports.getDescriptions = async (req, res) => {
-  try{
-    const descriptions=await descriptionService.getDescriptions(req.user.userId,req.contact.contactId);
-    res.json({descriptions})
-  }catch(err){
-    res.status(401).json({ message: err.message });
+  try {
+    const userId = req.user.userId;        // from JWT middleware
+    const contactId = req.params.contactId; // from URL
+
+    const descriptions = await descriptionService.getDescriptions(
+      userId,
+      contactId
+    );
+
+    res.json({ descriptions });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.insertDescriptions = async (req, res) => {
   try {

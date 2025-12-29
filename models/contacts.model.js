@@ -17,3 +17,4 @@ exports.fetchContacts= async (userId)=>{
     );
     return rows
 }
+
