@@ -5,6 +5,7 @@ const cors = require("cors");
 
 const authRoutes = require("./routes/auth.routes");
 const contactsRoutes = require("./routes/contacts.routes");
+const descriptionsRoutes=require("./routes/description.routes")
 
 const app = express();
 
@@ -13,5 +14,6 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/contacts", contactsRoutes);
+app.use("/api/set-description", descriptionsRoutes);
 
 module.exports = app;
