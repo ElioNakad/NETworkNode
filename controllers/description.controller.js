@@ -16,6 +16,22 @@ exports.getDescriptions = async (req, res) => {
   }
 };
 
+exports.getDefaultDescriptions = async (req, res) => {
+
+  try {
+        console.log("GET userId:", req.user.userId); // 👈 ADD THIS
+
+    const userId = req.user.userId;        // from JWT middleware
+
+    const descriptions = await descriptionService.getDefaultDescriptions(
+      userId,
+    );
+
+    res.json({ descriptions });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 exports.insertDescriptions = async (req, res) => {
   try {
@@ -32,6 +48,29 @@ exports.insertDescriptions = async (req, res) => {
     );
 
     res.json({ id, message: "Description added successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.insertDefaultDescriptions = async (req, res) => {
+  console.log("INSERT userId:", req.user.userId);
+
+  try {
+    const { label, description } = req.body;
+    const users_id = req.user.userId;
+
+    if (!label || !description) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
+
+    const id = await descriptionService.insertDefaultDescriptions(
+      users_id,
+      label,
+      description
+    );
+
+    res.json({ id, message: "Default description saved" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

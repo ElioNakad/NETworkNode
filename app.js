@@ -14,6 +14,6 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/contacts", contactsRoutes);
-app.use("/api/set-description", descriptionsRoutes);
+app.use("/api/description", descriptionsRoutes);
 
 module.exports = app;
