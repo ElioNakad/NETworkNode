@@ -16,6 +16,23 @@ exports.getDescriptions = async (req, res) => {
   }
 };
 
+exports.getDefaultDescriptionsForContact = async (req, res) => {
+  try {
+    const viewerUserId = req.user.userId; // from auth middleware
+    const { phone } = req.params;
+
+    const descriptions =
+      await descriptionService.getDefaultDescriptionsForContact(
+        viewerUserId,
+        phone
+      );
+
+    res.json({ descriptions });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.getDefaultDescriptions = async (req, res) => {
 
   try {
@@ -75,3 +92,29 @@ exports.insertDefaultDescriptions = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.deleteManualDescription=async(req,res)=>{
+  try{
+    const id=req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: "Missing data" });
+    }
+    const results=await descriptionService.deleteManualDescription(id);
+    res.json({ results, message: "Deleted successfully" });
+  }catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
+exports.deleteDefaultDescription=async(req,res)=>{
+  try{
+    const id=req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: "Missing data" });
+    }
+    const results=await descriptionService.deleteDefaultDescription(id);
+    res.json({ results, message: "Deleted successfully" });
+  }catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}

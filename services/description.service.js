@@ -16,9 +16,26 @@ const insertDefaultDescriptions=async(users_id,label,description)=>{
   return descriptionModel.insertDefaultDescriptions(users_id,label,description)
 }
 
+const getDefaultDescriptionsForContact = async (viewerUserId, phone) => {
+  return descriptionModel.fetchDefaultDescriptionsForContact(
+    viewerUserId,
+    phone
+  );
+};
+
+const deleteManualDescription=async(id)=>{
+  return descriptionModel.deleteManualDescription(id)
+}
+
+const deleteDefaultDescription=async(id)=>{
+  return descriptionModel.deleteDefaultDescription(id)
+}
 module.exports={
   getDescriptions,
   getDefaultDescriptions,
   insertDescriptions,
-  insertDefaultDescriptions
+  insertDefaultDescriptions,
+  getDefaultDescriptionsForContact,
+  deleteManualDescription,
+  deleteDefaultDescription
 }

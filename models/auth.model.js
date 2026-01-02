@@ -38,3 +38,12 @@ exports.findByEmail = async (email) => {
 
   return rows[0];
 };
+
+exports.checkUserPhone=async(phone)=>{
+  const user=await db.query(
+    "SELECT * FROM users WHERE phone=?",
+    [phone]
+  );
+  return user;
+}
+

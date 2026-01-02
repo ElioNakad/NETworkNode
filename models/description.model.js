@@ -56,12 +56,10 @@ exports.insertDefaultDescriptions = async (
 };
 
 exports.fetchDefaultDescriptions= async (userId)=>{
-  
- 
   const [rows] = await db.query(
       `
       SELECT
-        label,description
+        label,description,id
       FROM default_description
       WHERE users_id=?
       `,
@@ -69,3 +67,48 @@ exports.fetchDefaultDescriptions= async (userId)=>{
     );
   return rows
 }
+
+exports.fetchDefaultDescriptionsForContact = async (viewerUserId, phone) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      dd.id,
+      dd.label,
+      dd.description
+    FROM user_contacts uc
+    JOIN contacts c ON c.id = uc.contact_id
+    JOIN users u ON u.phone = c.phone
+    JOIN default_description dd ON dd.users_id = u.id
+    WHERE uc.user_id = ?
+      AND c.phone = ?
+    `,
+    [viewerUserId, phone]
+  );
+
+  return rows;
+};
+
+
+exports.deleteManualDescription = async (id) => {
+  const [result] = await db.query(
+    `
+    DELETE FROM user_contact_descriptions
+    WHERE id = ?
+    `,
+    [id]
+  );
+
+  return result.affectedRows;
+};
+
+exports.deleteDefaultDescription = async (id) => {
+  const [result] = await db.query(
+    `
+    DELETE FROM default_description
+    WHERE id = ?
+    `,
+    [id]
+  );
+
+  return result.affectedRows;
+};

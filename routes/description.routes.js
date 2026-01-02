@@ -16,6 +16,11 @@ router.get(
   descriptionController.getDescriptions
 );
 
+router.get(
+  "/default/:phone",
+  authMiddleware,
+  descriptionController.getDefaultDescriptionsForContact
+);
 
 router.post("/", descriptionController.insertDescriptions);
 
@@ -23,6 +28,19 @@ router.post(
   "/set-default",
   authMiddleware,
   descriptionController.insertDefaultDescriptions
+);
+
+// 🔴 DELETE MANUAL DESCRIPTION
+router.delete(
+  "/manual/:id",
+  authMiddleware,
+  descriptionController.deleteManualDescription
+);
+
+router.delete(
+  "/default/:id",
+  authMiddleware,
+  descriptionController.deleteDefaultDescription
 );
 
 module.exports = router;
