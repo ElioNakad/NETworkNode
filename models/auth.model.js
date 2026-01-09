@@ -2,8 +2,8 @@ const db = require("../config/db");
 
 exports.insertUser = async (conn, user) => {
   const [res] = await conn.query(
-    "INSERT INTO users (email, fname, lname, phone, password) VALUES (?, ?, ?, ?, ?)",
-    [user.email, user.fname, user.lname, user.phone, user.password]
+    "INSERT INTO users (email, fname, lname, phone, password, linkedin) VALUES (?, ?, ?, ?, ?, ?)",
+    [user.email, user.fname, user.lname, user.phone, user.password, user.linkedin]
   );
   return res.insertId;
 };

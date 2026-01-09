@@ -13,6 +13,7 @@ exports.fetchReviews = async (default_description_id) => {
     SELECT
       r.id            AS review_id,
       r.review        AS review_text,
+      r.created_at    AS review_date,
 
       u.id            AS reviewer_id,
       u.fname         AS reviewer_fname,

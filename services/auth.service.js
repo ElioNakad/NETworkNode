@@ -6,7 +6,7 @@ const nodemailer = require("nodemailer");
 const otpStore = new Map();
 
 const signup = async (data) => {
-  const { email, fname, lname, phone, password, contacts } = data;
+  const { email, fname, lname, phone, password, contacts, linkedin } = data;
 
   if (!email || !fname || !lname || !phone || !password) {
     throw new Error("Missing fields");
@@ -25,6 +25,7 @@ const signup = async (data) => {
       lname,
       phone,
       password: hashedPassword,
+      linkedin
     });
 
     for (const c of contacts || []) {
