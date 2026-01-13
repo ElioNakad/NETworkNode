@@ -4,6 +4,7 @@ const authModel = require("../models/auth.model");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const otpStore = new Map();
+const embeddingService = require("./embedding.service");
 
 const signup = async (data) => {
   const { email, fname, lname, phone, password, contacts, linkedin } = data;
@@ -39,6 +40,16 @@ const signup = async (data) => {
         contactId,
         c.displayName
       );
+      await embeddingService.createProfileSnapshotForSignup(
+  conn,
+  userId,
+  contactId,
+  {
+    displayName: c.displayName,
+    phone: c.phone,
+    defaultLabel: null, // at signup we don't know yet (optional)
+  }
+);
     }
 
     await conn.commit();
