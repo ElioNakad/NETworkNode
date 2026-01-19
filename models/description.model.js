@@ -15,7 +15,7 @@ exports.fetchContactDescriptions= async (userId,contactId)=>{
       `,
       [userId,contactId]
     );
-    return rows
+  return rows
 }
 
 exports.insertContactDescriptions = async (
@@ -23,37 +23,85 @@ exports.insertContactDescriptions = async (
   label,
   description
 ) => {
-  const [result] = await db.query(
-    `
-    INSERT INTO user_contact_descriptions
-      (user_contact_id, label, description)
-    VALUES
-      (?, ?, ?);
-    `,
-    [userContactId, label, description]
-  );
+  const conn = await db.getConnection();
 
-  return result.insertId; // id of the new label
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Insert description
+    const [result] = await conn.query(
+      `
+      INSERT INTO user_contact_descriptions
+        (user_contact_id, label, description)
+      VALUES (?, ?, ?)
+      `,
+      [userContactId, label, description]
+    );
+
+    // 2️⃣ Mark embedding as dirty
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN user_contacts uc
+        ON uc.user_id = uce.user_id
+       AND uc.contact_id = uce.contact_id
+      SET uce.needs_rebuild = 1
+      WHERE uc.id = ?
+      `,
+      [userContactId]
+    );
+
+    await conn.commit();
+    return result.insertId;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
 
-exports.insertDefaultDescriptions = async (
-  users_id,
-  label,
-  description
-) => {
-  
-  const [result] = await db.query(
-    `
-    INSERT INTO default_description
-      (users_id, label, description)
-    VALUES
-      (?, ?, ?);
-    `,
-    [users_id, label, description]
-  );
 
-  return result.insertId; // id of the new label
+exports.insertDefaultDescriptions = async (users_id, label, description) => {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Insert default description
+    const [result] = await conn.query(
+      `
+      INSERT INTO default_description (users_id, label, description)
+      VALUES (?, ?, ?)
+      `,
+      [users_id, label, description]
+    );
+
+    // 2️⃣ Mark embeddings dirty where THIS user appears in others' contacts
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN users u              ON u.id = ?
+      JOIN contacts c           ON c.phone = u.phone
+      JOIN user_contacts uc     ON uc.contact_id = c.id
+                               AND uc.user_id = uce.user_id
+                               AND uc.contact_id = uce.contact_id
+      SET uce.needs_rebuild = 1
+      `,
+      [users_id]
+    );
+
+    await conn.commit();
+    return result.insertId;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
+
 
 exports.fetchDefaultDescriptions= async (userId)=>{
   const [rows] = await db.query(

@@ -8,8 +8,10 @@ const contactsRoutes = require("./routes/contacts.routes");
 const descriptionsRoutes=require("./routes/description.routes")
 const reviewRoutes=require("./routes/review.routes")
 const settingsRoutes=require("./routes/settings.routes")
-const app = express();
 
+const aiRoutes=require("./routes/ai.routes")
+
+const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -20,5 +22,6 @@ app.use("/api/description", descriptionsRoutes);
 app.use("/api/review", reviewRoutes);
 app.use("/api/settings", settingsRoutes);
 
+app.use("/api/ai",aiRoutes );
 
 module.exports = app;
