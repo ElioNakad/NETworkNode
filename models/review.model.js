@@ -1,12 +1,46 @@
 const db = require("../config/db");
 
-exports.insertReview=async(user_id,default_description_id,review)=>{
-  const [res] = await db.query(
-    "INSERT INTO reviews (reviewer_id, default_description_id, review) VALUES (?, ?, ?)",
-    [user_id,default_description_id,review]
-  );
-  return res.insertId;
-}
+exports.insertReview = async (reviewer_id, default_description_id, review) => {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Insert the review
+    const [res] = await conn.query(
+      `
+      INSERT INTO reviews (reviewer_id, default_description_id, review)
+      VALUES (?, ?, ?)
+      `,
+      [reviewer_id, default_description_id, review]
+    );
+
+    // 2️⃣ Mark embeddings dirty using PHONE identity
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN contacts c
+        ON c.id = uce.contact_id
+      JOIN users u
+        ON u.phone = c.phone
+      JOIN default_description dd
+        ON dd.users_id = u.id
+      SET uce.needs_rebuild = 1
+      WHERE dd.id = ?
+      `,
+      [default_description_id]
+    );
+
+    await conn.commit();
+    return res.insertId;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
 
 exports.fetchReviews = async (default_description_id) => {
   const sql = `

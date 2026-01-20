@@ -28,7 +28,6 @@ exports.login = async (req, res) => {
 };
 
 
-
 exports.sendOtp = async (req, res) => {
   const { email, payload } = req.body;
 
