@@ -138,25 +138,99 @@ exports.fetchDefaultDescriptionsForContact = async (viewerUserId, phone) => {
 
 
 exports.deleteManualDescription = async (id) => {
-  const [result] = await db.query(
-    `
-    DELETE FROM user_contact_descriptions
-    WHERE id = ?
-    `,
-    [id]
-  );
+  const conn = await db.getConnection();
 
-  return result.affectedRows;
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Get user_contact_id BEFORE delete
+    const [[row]] = await conn.query(
+      `SELECT user_contact_id FROM user_contact_descriptions WHERE id = ?`,
+      [id]
+    );
+
+    if (!row) {
+      await conn.rollback();
+      return 0;
+    }
+
+    const userContactId = row.user_contact_id;
+
+    // 2️⃣ Delete description
+    const [result] = await conn.query(
+      `DELETE FROM user_contact_descriptions WHERE id = ?`,
+      [id]
+    );
+
+    // 3️⃣ Mark embedding dirty
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN user_contacts uc
+        ON uc.user_id = uce.user_id
+       AND uc.contact_id = uce.contact_id
+      SET uce.needs_rebuild = 1
+      WHERE uc.id = ?
+      `,
+      [userContactId]
+    );
+
+    await conn.commit();
+    return result.affectedRows;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
-
 exports.deleteDefaultDescription = async (id) => {
-  const [result] = await db.query(
-    `
-    DELETE FROM default_description
-    WHERE id = ?
-    `,
-    [id]
-  );
+  const conn = await db.getConnection();
 
-  return result.affectedRows;
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Get users_id BEFORE delete
+    const [[row]] = await conn.query(
+      `SELECT users_id FROM default_description WHERE id = ?`,
+      [id]
+    );
+
+    if (!row) {
+      await conn.rollback();
+      return 0;
+    }
+
+    const usersId = row.users_id;
+
+    // 2️⃣ Delete default description
+    const [result] = await conn.query(
+      `DELETE FROM default_description WHERE id = ?`,
+      [id]
+    );
+
+    // 3️⃣ Mark embeddings dirty where this user appears in contacts
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN users u          ON u.id = ?
+      JOIN contacts c       ON c.phone = u.phone
+      JOIN user_contacts uc ON uc.contact_id = c.id
+                           AND uc.user_id = uce.user_id
+                           AND uc.contact_id = uce.contact_id
+      SET uce.needs_rebuild = 1
+      `,
+      [usersId]
+    );
+
+    await conn.commit();
+    return result.affectedRows;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };

@@ -16,4 +16,11 @@ router.get(
   reviewController.getMyReviews
 );
 
+router.delete(
+  "/delete-review/:id",
+  authMiddleware,
+  reviewController.deleteReview
+);
+
+
 module.exports = router;

@@ -34,8 +34,40 @@ exports.getMyReviews = async (req, res) => {
 
     const reviews = await reviewService.fetchReviews(labelId);
 
-    res.json({ reviews });
+    res.json({ 
+      reviews,
+      currentUserId: req.user.userId 
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// review.controller.js
+exports.deleteReview = async (req, res) => {
+  try {
+    const review_id = req.params.id;
+    const user_id = req.user.userId;
+
+    if (!review_id) {
+      return res.status(400).json({ message: "Review ID is required" });
+    }
+
+    const affectedRows = await reviewService.deleteReview(
+      review_id,
+      user_id
+    );
+
+    if (affectedRows === 0) {
+      return res.status(403).json({
+        message: "You are not allowed to delete this review"
+      });
+    }
+
+    res.json({ message: "Review deleted successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Delete failed" });
   }
 };

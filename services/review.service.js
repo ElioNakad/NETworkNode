@@ -8,8 +8,12 @@ const fetchReviews = async (labelId) => {
   return reviewModel.fetchReviews(labelId);
 };
 
+const deleteReview = async (review_id, user_id) => {
+  return reviewModel.deleteReview(review_id, user_id);
+};
 
 module.exports={
     insertReview,
-    fetchReviews
+    fetchReviews,
+    deleteReview
 }

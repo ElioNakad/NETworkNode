@@ -29,3 +29,16 @@ exports.fetchReviews = async (default_description_id) => {
   const [rows] = await db.query(sql, [default_description_id]);
   return rows;
 };
+
+// review.model.js
+exports.deleteReview = async (review_id, user_id) => {
+  const [result] = await db.query(
+    `
+    DELETE FROM reviews
+    WHERE id = ? AND reviewer_id = ?
+    `,
+    [review_id, user_id]
+  );
+
+  return result.affectedRows;
+};
