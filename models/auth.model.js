@@ -46,4 +46,3 @@ exports.checkUserPhone=async(phone)=>{
   );
   return user;
 }
-

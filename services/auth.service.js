@@ -138,9 +138,27 @@ const verifyOtpAndSignup = async (email, otp) => {
 };
 
 
+const checkUserPhone = async (phone) => {
+  const [rows] = await authModel.checkUserPhone(phone);
+
+  if (rows.length === 0) {
+    return { exists: false, user: null };
+  }
+
+  const { password, ...safeUser } = rows[0]; // 🔐 never send password
+
+  return {
+    exists: true,
+    user: safeUser, // includes linkedin
+  };
+};
+
+
+
 module.exports = {
   signup,
   login,
   sendOtp,
-  verifyOtpAndSignup
+  verifyOtpAndSignup,
+  checkUserPhone
 };

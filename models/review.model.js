@@ -64,15 +64,63 @@ exports.fetchReviews = async (default_description_id) => {
   return rows;
 };
 
-// review.model.js
-exports.deleteReview = async (review_id, user_id) => {
-  const [result] = await db.query(
-    `
-    DELETE FROM reviews
-    WHERE id = ? AND reviewer_id = ?
-    `,
-    [review_id, user_id]
-  );
+exports.deleteReview = async (review_id, reviewer_id) => {
+  const conn = await db.getConnection();
 
-  return result.affectedRows;
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Get the OWNER of the reviewed profile (the impacted user)
+    const [[row]] = await conn.query(
+      `
+      SELECT dd.users_id AS target_user_id
+      FROM reviews r
+      JOIN default_description dd
+        ON r.default_description_id = dd.id
+      WHERE r.id = ? AND r.reviewer_id = ?
+      `,
+      [review_id, reviewer_id]
+    );
+
+    if (!row) {
+      // Either review doesn't exist or user is not the owner
+      await conn.rollback();
+      return 0;
+    }
+
+    const targetUserId = row.target_user_id;
+
+    // 2️⃣ Delete the review
+    const [delRes] = await conn.query(
+      `
+      DELETE FROM reviews
+      WHERE id = ? AND reviewer_id = ?
+      `,
+      [review_id, reviewer_id]
+    );
+
+    if (delRes.affectedRows === 0) {
+      await conn.rollback();
+      return 0;
+    }
+
+    // 3️⃣ Mark ALL embeddings of the impacted user as dirty
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings
+      SET needs_rebuild = 1
+      WHERE user_id = ?
+      `,
+      [targetUserId]
+    );
+
+    await conn.commit();
+    return delRes.affectedRows;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
