@@ -45,17 +45,62 @@ exports.getUserCV = async (userId) => {
 };
 
 exports.insertUserCV = async (userId, cvText) => {
-  const [res] = await db.query(
-    "INSERT INTO users_cv (user_id, cv) VALUES (?, ?)",
-    [userId, cvText]
-  );
-  return res.insertId;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    await conn.query(
+      "INSERT INTO users_cv (user_id, cv) VALUES (?, ?)",
+      [userId, cvText]
+    );
+
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN contacts c ON c.id = uce.contact_id
+      JOIN users u ON u.phone = c.phone
+      SET uce.needs_rebuild = 1
+      WHERE u.id = ?
+      `,
+      [userId]
+    );
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
 
 exports.updateUserCV = async (userId, cvText) => {
-  const [res] = await db.query(
-    "UPDATE users_cv SET cv=? WHERE user_id=?",
-    [cvText, userId]
-  );
-  return res.affectedRows;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    await conn.query(
+      "UPDATE users_cv SET cv=? WHERE user_id=?",
+      [cvText, userId]
+    );
+
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN contacts c ON c.id = uce.contact_id
+      JOIN users u ON u.phone = c.phone
+      SET uce.needs_rebuild = 1
+      WHERE u.id = ?
+      `,
+      [userId]
+    );
+
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
+
