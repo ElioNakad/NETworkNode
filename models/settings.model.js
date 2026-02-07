@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 exports.fetchUser= async (userId)=>{
   const [rows] = await db.query(
       `
-      SELECT id,email,fname,lname,phone,linkedin
+      SELECT id,email,fname,lname,phone,linkedin,refer
       From users WHERE id=?
       `,
       [userId]
@@ -104,3 +104,12 @@ exports.updateUserCV = async (userId, cvText) => {
   }
 };
 
+exports.changeRefer=async(userId,newRefer)=>{
+  const [result] = await db.query(
+      `
+      UPDATE users SET refer=? WHERE id=?
+      `,
+      [newRefer,userId]
+  );
+  return result.affectedRows
+}

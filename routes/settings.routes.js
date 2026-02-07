@@ -13,4 +13,6 @@ router.put(
   upload.single("cv"),
   settingsController.updateCV
 );
+router.put("/change-refer", authMiddleware, settingsController.changeRefer);
+
 module.exports = router;

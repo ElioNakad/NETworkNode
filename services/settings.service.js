@@ -20,8 +20,13 @@ const saveUserCV = async (userId, cvText) => {
   return true;
 };
 
+const changeRefer=async(newPrivacy,userId)=>{
+  return settingsModel.changeRefer(newPrivacy,userId)
+}
+
 module.exports={
     fetchUser,
     updateUser,
-    saveUserCV
+    saveUserCV,
+    changeRefer
 }

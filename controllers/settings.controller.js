@@ -99,3 +99,27 @@ exports.updateCV = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.changeRefer = async (req, res) => {
+  try {
+    const userId = req.user.userId; // coming from JWT middleware
+    const { refer } = req.body; // true / false or "1" / "0"
+
+    if (refer === undefined) {
+      return res.status(400).json({ message: "refer is required" });
+    }
+
+    const affected = await settingService.changeRefer(userId, refer);
+
+    if (affected === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ message: "Refer updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
