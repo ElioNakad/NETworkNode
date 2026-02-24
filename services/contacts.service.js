@@ -1,6 +1,6 @@
 const contactsModel = require("../models/contacts.model");
 const db = require("../config/db");
-
+const embeddingService = require("../services/embedding.service");
 exports.getUserContacts=async(userId)=>{
   return contactsModel.fetchContacts(userId)
 }
@@ -41,14 +41,34 @@ exports.resyncContacts = async (allContacts, userId) => {
           contactId,
           displayName
         );
+        await embeddingService.createProfileSnapshotForSignup(
+          conn,
+          userId,
+          contactId,
+          {
+            displayName,
+            phone,
+            defaultLabel: null
+          }
+        );
       } else {
-        // 🔄 Update display name
-        await contactsModel.updateDisplayName(
+         // 🔄 Update display name
+        const affected = await contactsModel.updateDisplayName(
           conn,
           userId,
           contactId,
           displayName
         );
+
+          // Only rebuild embedding if something actually changed
+        if (affected > 0) {
+          await embeddingService.updateNameInProfileSnapshot(
+  conn,
+  userId,
+  contactId,
+  displayName
+);
+        }
       }
     }
 

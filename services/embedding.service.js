@@ -52,3 +52,46 @@ exports.createProfileSnapshotForSignup = async (
     profileText
   );
 };
+
+exports.updateNameInProfileSnapshot = async (
+  conn,
+  userId,
+  contactId,
+  newDisplayName
+) => {
+
+  // 1️⃣ Get current snapshot
+  const [rows] = await conn.query(
+    `
+    SELECT profile_text
+    FROM user_contact_embeddings
+    WHERE user_id = ? AND contact_id = ?
+    `,
+    [userId, contactId]
+  );
+
+  if (!rows.length) return;
+
+  let profileText = rows[0].profile_text;
+
+  // 2️⃣ Replace ONLY the Name line
+  profileText = profileText.replace(
+    /Name:\s*.*/,
+    `Name: ${newDisplayName}`
+  );
+
+  // 3️⃣ Recompute hash
+  const contextHash = hashText(profileText);
+
+  // 4️⃣ Update snapshot without touching other fields
+  await conn.query(
+    `
+    UPDATE user_contact_embeddings
+    SET profile_text = ?,
+        context_hash = ?,
+        needs_rebuild = 1
+    WHERE user_id = ? AND contact_id = ?
+    `,
+    [profileText, contextHash, userId, contactId]
+  );
+};

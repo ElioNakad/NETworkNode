@@ -77,7 +77,6 @@ const login = async (email, password) => {
     throw new Error("Invalid email or password");
   }
 
-  // ✅ Create JWT
   const token = jwt.sign(
     {
       userId: user.id,
@@ -87,7 +86,6 @@ const login = async (email, password) => {
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
 
-  // ❌ DO NOT return contacts
   return {
     token,
     user: {
