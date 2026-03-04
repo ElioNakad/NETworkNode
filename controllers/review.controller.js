@@ -17,7 +17,7 @@ exports.insertReview = async (req, res) => {
       review
     );
 
-    /*fetch("http://127.0.0.1:5001/rebuild-vectors", {
+    fetch("http://127.0.0.1:5001/rebuild-vectors", {
       method: "POST"
     }).then(res => {
       if (!res.ok) {
@@ -25,7 +25,7 @@ exports.insertReview = async (req, res) => {
       }
     }).catch(err => {
       console.log("Vector rebuild error:", err.message);
-    });*/
+    });
 
     res.json({ id, message: "Review saved successfully" });
   } catch (err) {

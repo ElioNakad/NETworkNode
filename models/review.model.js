@@ -1,6 +1,6 @@
 const db = require("../config/db");
-
-exports.insertReview = async (reviewer_id, default_description_id, review) => {
+const Review = require("../mongoModel/Review");
+/*exports.insertReview = async (reviewer_id, default_description_id, review) => {
   const conn = await db.getConnection();
 
   try {
@@ -40,9 +40,55 @@ exports.insertReview = async (reviewer_id, default_description_id, review) => {
   } finally {
     conn.release();
   }
+}; */
+exports.insertReview = async (reviewer_id, default_description_id, review) => {
+
+  const conn = await db.getConnection();
+
+  try {
+
+    await conn.beginTransaction();
+
+    // 1️⃣ Insert review into MongoDB
+    const mongoReview = await Review.create({
+      reviewer_id,
+      default_description_id,
+      review
+    });
+
+    // 2️⃣ Keep embedding logic (MySQL)
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings uce
+      JOIN contacts c
+        ON c.id = uce.contact_id
+      JOIN users u
+        ON u.phone = c.phone
+      JOIN default_description dd
+        ON dd.users_id = u.id
+      SET uce.needs_rebuild = 1
+      WHERE dd.id = ?
+      `,
+      [default_description_id]
+    );
+
+    await conn.commit();
+
+    return mongoReview._id;
+
+  } catch (err) {
+
+    await conn.rollback();
+    throw err;
+
+  } finally {
+
+    conn.release();
+
+  }
 };
 
-exports.fetchReviews = async (default_description_id) => {
+/*exports.fetchReviews = async (default_description_id) => {
   const sql = `
     SELECT
       r.id            AS review_id,
@@ -62,9 +108,50 @@ exports.fetchReviews = async (default_description_id) => {
 
   const [rows] = await db.query(sql, [default_description_id]);
   return rows;
-};
+};*/
+exports.fetchReviews = async (default_description_id) => {
 
-exports.deleteReview = async (review_id, reviewer_id) => {
+  // 1️⃣ Fetch reviews from MongoDB
+  const reviews = await Review.find({
+    default_description_id: default_description_id
+  }).sort({ _id: -1 });
+
+  if (reviews.length === 0) return [];
+
+  // 2️⃣ Get reviewer IDs
+  const reviewerIds = [...new Set(reviews.map(r => r.reviewer_id))];
+
+  // 3️⃣ Fetch user info from MySQL
+  const placeholders = reviewerIds.map(() => "?").join(",");
+  const sql = `
+      SELECT id, fname, lname, email
+      FROM users
+      WHERE id IN (${placeholders})
+  `;
+
+  const [users] = await db.query(sql, reviewerIds);
+
+  // 4️⃣ Create map for fast lookup
+  const userMap = {};
+  users.forEach(u => {
+    userMap[u.id] = u;
+  });
+
+  // 5️⃣ Merge data
+  const result = reviews.map(r => ({
+    review_id: r._id,
+    review_text: r.review,
+    review_date: r.created_at,
+
+    reviewer_id: r.reviewer_id,
+    reviewer_fname: userMap[r.reviewer_id]?.fname || null,
+    reviewer_lname: userMap[r.reviewer_id]?.lname || null,
+    reviewer_email: userMap[r.reviewer_id]?.email || null
+  }));
+
+  return result;
+};
+/*exports.deleteReview = async (review_id, reviewer_id) => {
   const conn = await db.getConnection();
 
   try {
@@ -116,6 +203,69 @@ exports.deleteReview = async (review_id, reviewer_id) => {
 
     await conn.commit();
     return delRes.affectedRows;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};*/
+
+exports.deleteReview = async (review_id, reviewer_id) => {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Get review from MongoDB
+    const review = await Review.findOne({
+      _id: review_id,
+      reviewer_id: reviewer_id
+    });
+
+    if (!review) {
+      await conn.rollback();
+      return 0;
+    }
+
+    const defaultDescriptionId = review.default_description_id;
+
+    // 2️⃣ Get owner of the reviewed profile from MySQL
+    const [[row]] = await conn.query(
+      `
+      SELECT users_id AS target_user_id
+      FROM default_description
+      WHERE id = ?
+      `,
+      [defaultDescriptionId]
+    );
+
+    if (!row) {
+      await conn.rollback();
+      return 0;
+    }
+
+    const targetUserId = row.target_user_id;
+
+    // 3️⃣ Delete review from MongoDB
+    await Review.deleteOne({
+      _id: review_id,
+      reviewer_id: reviewer_id
+    });
+
+    // 4️⃣ Mark embeddings dirty (UNCHANGED)
+    await conn.query(
+      `
+      UPDATE user_contact_embeddings
+      SET needs_rebuild = 1
+      WHERE user_id = ?
+      `,
+      [targetUserId]
+    );
+
+    await conn.commit();
+    return 1;
 
   } catch (err) {
     await conn.rollback();
