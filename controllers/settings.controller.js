@@ -90,6 +90,16 @@ exports.updateCV = async (req, res) => {
 
     await settingService.saveUserCV(userId, cvText);
 
+    fetch("http://127.0.0.1:5001/rebuild-vectors", {
+      method: "POST"
+    }).then(res => {
+      if (!res.ok) {
+        console.log("Vector rebuild failed with status:", res.status);
+      }
+    }).catch(err => {
+      console.log("Vector rebuild error:", err.message);
+    });
+
     res.json({
       success: true,
       message: "CV uploaded and processed successfully",

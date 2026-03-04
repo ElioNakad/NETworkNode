@@ -46,3 +46,15 @@ exports.checkUserPhone=async(phone)=>{
   );
   return user;
 }
+
+exports.upsertUserProfileEmbeddingRow=async(conn, userId, profileText)=>{
+  const sql = `
+    INSERT INTO user_profile_embeddings (user_id, profile_text, needs_rebuild)
+    VALUES (?, ?, TRUE)
+    ON DUPLICATE KEY UPDATE
+      profile_text = VALUES(profile_text),
+      needs_rebuild = TRUE
+  `;
+
+  await conn.execute(sql, [userId, profileText]);
+}

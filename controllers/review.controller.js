@@ -17,6 +17,16 @@ exports.insertReview = async (req, res) => {
       review
     );
 
+    /*fetch("http://127.0.0.1:5001/rebuild-vectors", {
+      method: "POST"
+    }).then(res => {
+      if (!res.ok) {
+        console.log("Vector rebuild failed with status:", res.status);
+      }
+    }).catch(err => {
+      console.log("Vector rebuild error:", err.message);
+    });*/
+
     res.json({ id, message: "Review saved successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -63,6 +73,16 @@ exports.deleteReview = async (req, res) => {
         message: "You are not allowed to delete this review"
       });
     }
+
+    fetch("http://127.0.0.1:5001/rebuild-vectors", {
+      method: "POST"
+    }).then(res => {
+      if (!res.ok) {
+        console.log("Vector rebuild failed with status:", res.status);
+      }
+    }).catch(err => {
+      console.log("Vector rebuild error:", err.message);
+    });
 
     res.json({ message: "Review deleted successfully" });
 

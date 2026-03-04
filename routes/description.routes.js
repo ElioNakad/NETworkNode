@@ -17,12 +17,21 @@ router.get(
 );
 
 router.get(
+  "/get-private/:contactId",
+  authMiddleware,
+  descriptionController.getPrivateDescriptions
+);
+
+router.get(
   "/default/:phone",
   authMiddleware,
   descriptionController.getDefaultDescriptionsForContact
 );
 
 router.post("/", descriptionController.insertDescriptions);
+
+router.post("/insert-private", descriptionController.insertPrivateDescriptions);
+
 
 router.post(
   "/set-default",
@@ -35,6 +44,12 @@ router.delete(
   "/manual/:id",
   authMiddleware,
   descriptionController.deleteManualDescription
+);
+
+router.delete(
+  "/delete-private/:id",
+  authMiddleware,
+  descriptionController.deletePrivateDescription
 );
 
 router.delete(

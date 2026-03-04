@@ -95,3 +95,21 @@ exports.updateNameInProfileSnapshot = async (
     [profileText, contextHash, userId, contactId]
   );
 };
+
+exports.buildMinimalProfileTextForUser=({ fname, lname, phone })=> {
+  const name = `${fname ?? ""} ${lname ?? ""}`.trim();
+
+  return `CONTACT:
+Name: ${name || "None"}
+Phone: ${phone || "None"}
+
+DEFAULT IDENTITY:
+None
+
+CV:
+None
+
+REVIEWS:
+None.`;
+}
+

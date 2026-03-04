@@ -18,6 +18,24 @@ exports.fetchContactDescriptions= async (userId,contactId)=>{
   return rows
 }
 
+exports.fetchPrivateDescriptions= async (userId,contactId)=>{
+    const [rows] = await db.query(
+      `
+      SELECT
+        ucd.id,
+        ucd.label,
+        ucd.description
+      FROM private_descriptions ucd
+      JOIN user_contacts uc
+       ON ucd.user_contact_id = uc.id
+      WHERE uc.user_id = ?
+      AND uc.contact_id = ?;
+      `,
+      [userId,contactId]
+    );
+  return rows
+}
+
 exports.insertContactDescriptions = async (
   userContactId,
   label,
@@ -185,6 +203,45 @@ exports.deleteManualDescription = async (id) => {
     conn.release();
   }
 };
+
+
+exports.deletePrivateDescription = async (id) => {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Get user_contact_id BEFORE delete
+    const [[row]] = await conn.query(
+      `SELECT user_contact_id FROM private_descriptions WHERE id = ?`,
+      [id]
+    );
+
+    if (!row) {
+      await conn.rollback();
+      return 0;
+    }
+
+    const userContactId = row.user_contact_id;
+
+    // 2️⃣ Delete description
+    const [result] = await conn.query(
+      `DELETE FROM private_descriptions WHERE id = ?`,
+      [id]
+    );
+
+    await conn.commit();
+    return result.affectedRows;
+
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
+
+
 exports.deleteDefaultDescription = async (id) => {
   const conn = await db.getConnection();
 
@@ -227,6 +284,38 @@ exports.deleteDefaultDescription = async (id) => {
     await conn.commit();
     return result.affectedRows;
 
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
+
+exports.insertPrivateDescription = async (
+  userContactId,
+  label,
+  description
+) => {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Insert description
+    const [result] = await conn.query(
+      `
+      INSERT INTO private_descriptions
+        (user_contact_id, label, description)
+      VALUES (?, ?, ?)
+      `,
+      [userContactId, label, description]
+    );
+
+    
+
+    await conn.commit();
+    return result.insertId;
   } catch (err) {
     await conn.rollback();
     throw err;

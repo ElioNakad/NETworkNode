@@ -12,6 +12,7 @@ const settingsRoutes=require("./routes/settings.routes")
 const aiRoutes=require("./routes/ai.routes")
 
 const referralAI=require("./routes/referralAI.routes")
+const recommendationRoutes = require("./routes/recommendations.routes");
 
 const app = express();
 app.use(cors());
@@ -27,5 +28,6 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/ai",aiRoutes );
 
 app.use("/api/referralai", referralAI);
+app.use("/api/recommendations", recommendationRoutes);
 
 module.exports = app;

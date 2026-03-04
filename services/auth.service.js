@@ -29,30 +29,32 @@ const signup = async (data) => {
       linkedin
     });
 
+    // ✅ Insert user's own minimal snapshot
+    const profileText = embeddingService.buildMinimalProfileTextForUser({ fname, lname, phone });
+    await authModel.upsertUserProfileEmbeddingRow(conn, userId, profileText);
+
+    // existing contact loop (your code)
     for (const c of contacts || []) {
       if (!c.phone) continue;
 
       const contactId = await authModel.insertOrGetContact(conn, c.phone);
 
-      await authModel.linkUserContact(
+      await authModel.linkUserContact(conn, userId, contactId, c.displayName);
+
+      await embeddingService.createProfileSnapshotForSignup(
         conn,
         userId,
         contactId,
-        c.displayName
+        {
+          displayName: c.displayName,
+          phone: c.phone,
+          defaultLabel: null,
+        }
       );
-      await embeddingService.createProfileSnapshotForSignup(
-  conn,
-  userId,
-  contactId,
-  {
-    displayName: c.displayName,
-    phone: c.phone,
-    defaultLabel: null, // at signup we don't know yet (optional)
-  }
-);
     }
 
     await conn.commit();
+    return { userId };
   } catch (err) {
     await conn.rollback();
     throw err;

@@ -16,6 +16,22 @@ exports.getDescriptions = async (req, res) => {
   }
 };
 
+exports.getPrivateDescriptions = async (req, res) => {
+  try {
+    const userId = req.user.userId;        // from JWT middleware
+    const contactId = req.params.contactId; // from URL
+
+    const descriptions = await descriptionService.getPrivateDescriptions(
+      userId,
+      contactId
+    );
+
+    res.json({ descriptions });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.getDefaultDescriptionsForContact = async (req, res) => {
   try {
     const viewerUserId = req.user.userId; // from auth middleware
@@ -70,6 +86,26 @@ exports.insertDescriptions = async (req, res) => {
   }
 };
 
+exports.insertPrivateDescriptions = async (req, res) => {
+  try {
+    const { user_contact_id, label, description } = req.body;
+
+    if (!user_contact_id || !label || !description) {
+      return res.status(400).json({ message: "Missing data" });
+    }
+
+    const id = await descriptionService.insertPrivateDescriptions(
+      user_contact_id,
+      label,
+      description
+    );
+
+    res.json({ id, message: "Description added successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.insertDefaultDescriptions = async (req, res) => {
   console.log("INSERT userId:", req.user.userId);
 
@@ -86,6 +122,17 @@ exports.insertDefaultDescriptions = async (req, res) => {
       label,
       description
     );
+
+
+    fetch("http://127.0.0.1:5001/rebuild-vectors", {
+      method: "POST"
+    }).then(res => {
+      if (!res.ok) {
+        console.log("Vector rebuild failed with status:", res.status);
+      }
+    }).catch(err => {
+      console.log("Vector rebuild error:", err.message);
+    });
 
     res.json({ id, message: "Default description saved" });
   } catch (err) {
@@ -106,6 +153,19 @@ exports.deleteManualDescription=async(req,res)=>{
   }
 }
 
+exports.deletePrivateDescription=async(req,res)=>{
+  try{
+    const id=req.params.id;
+    if (!id) {
+      return res.status(400).json({ message: "Missing data" });
+    }
+    const results=await descriptionService.deletePrivateDescription(id);
+    res.json({ results, message: "Deleted successfully" });
+  }catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+}
+
 exports.deleteDefaultDescription=async(req,res)=>{
   try{
     const id=req.params.id;
@@ -113,6 +173,17 @@ exports.deleteDefaultDescription=async(req,res)=>{
       return res.status(400).json({ message: "Missing data" });
     }
     const results=await descriptionService.deleteDefaultDescription(id);
+
+    fetch("http://127.0.0.1:5001/rebuild-vectors", {
+      method: "POST"
+    }).then(res => {
+      if (!res.ok) {
+        console.log("Vector rebuild failed with status:", res.status);
+      }
+    }).catch(err => {
+      console.log("Vector rebuild error:", err.message);
+    });
+
     res.json({ results, message: "Deleted successfully" });
   }catch (err) {
     res.status(500).json({ message: err.message });
