@@ -29,3 +29,73 @@ exports.resyncContacts = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.addContact = async (req, res) => {
+
+  try {
+
+    const userId = req.user.userId;
+    const { phone, display_name } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ message: "Phone is required" });
+    }
+
+    const result = await contactsService.addContact(userId, phone, display_name);
+
+    if (result === "ALREADY_EXISTS") {
+      return res.status(200).json({
+        message: "Contact already exists for this user"
+      });
+    }
+
+    res.json({
+      message: "Contact added successfully",
+      contact_id: result
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+};
+
+exports.changeBlock = async (req, res) => {
+  try {
+
+    const userId = req.user.userId;
+    const { contact_id, block } = req.body;
+
+    if (!contact_id || block === undefined) {
+      return res.status(400).json({
+        message: "contact_id and block are required"
+      });
+    }
+
+    const result = await contactsService.changeBlock(
+      userId,
+      contact_id,
+      block
+    );
+
+    if (result === 0) {
+      return res.status(404).json({
+        message: "Contact not found"
+      });
+    }
+
+    res.json({
+      message: "Block status updated successfully"
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+};

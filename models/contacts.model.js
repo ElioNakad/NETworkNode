@@ -7,7 +7,8 @@ exports.fetchContacts= async (userId)=>{
         c.id AS contact_id,
         c.phone,
         uc.id AS user_contact_id,
-        uc.display_name
+        uc.display_name,
+        uc.block
       FROM user_contacts uc
       JOIN contacts c ON c.id = uc.contact_id
       WHERE uc.user_id = ?
@@ -75,3 +76,13 @@ exports.updateDisplayName = async (conn, user_id, contact_id, display_name) => {
   );
   return res.affectedRows;
 };
+
+exports.changeBlock=async(userId,contactId,newBlock)=>{
+  const [result] = await db.query(
+      `
+      UPDATE user_contacts SET block=? WHERE user_id=? AND contact_id=?
+      `,
+      [newBlock,userId,contactId]
+  );
+  return result.affectedRows  
+}

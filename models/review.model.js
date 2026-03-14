@@ -218,7 +218,6 @@ exports.deleteReview = async (review_id, reviewer_id) => {
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Get review from MongoDB
     const review = await Review.findOne({
       _id: review_id,
       reviewer_id: reviewer_id
@@ -231,37 +230,24 @@ exports.deleteReview = async (review_id, reviewer_id) => {
 
     const defaultDescriptionId = review.default_description_id;
 
-    // 2️⃣ Get owner of the reviewed profile from MySQL
-    const [[row]] = await conn.query(
-      `
-      SELECT users_id AS target_user_id
-      FROM default_description
-      WHERE id = ?
-      `,
-      [defaultDescriptionId]
-    );
-
-    if (!row) {
-      await conn.rollback();
-      return 0;
-    }
-
-    const targetUserId = row.target_user_id;
-
-    // 3️⃣ Delete review from MongoDB
     await Review.deleteOne({
       _id: review_id,
       reviewer_id: reviewer_id
     });
 
-    // 4️⃣ Mark embeddings dirty (UNCHANGED)
     await conn.query(
-      `
-      UPDATE user_contact_embeddings
-      SET needs_rebuild = 1
-      WHERE user_id = ?
-      `,
-      [targetUserId]
+    `
+    UPDATE user_contact_embeddings uce
+    JOIN contacts c
+      ON c.id = uce.contact_id
+    JOIN users u
+      ON u.phone = c.phone
+    JOIN default_description dd
+      ON dd.users_id = u.id
+    SET uce.needs_rebuild = 1
+    WHERE dd.id = ?
+    `,
+    [defaultDescriptionId]
     );
 
     await conn.commit();

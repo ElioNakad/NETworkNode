@@ -63,11 +63,11 @@ exports.resyncContacts = async (allContacts, userId) => {
           // Only rebuild embedding if something actually changed
         if (affected > 0) {
           await embeddingService.updateNameInProfileSnapshot(
-  conn,
-  userId,
-  contactId,
-  displayName
-);
+            conn,
+            userId,
+            contactId,
+            displayName
+          );
         }
       }
     }
@@ -81,3 +81,55 @@ exports.resyncContacts = async (allContacts, userId) => {
     conn.release();
   }
 };
+
+
+exports.addContact = async (userId, phone, display_name) => {
+
+  const conn = await db.getConnection();
+
+  try {
+
+    await conn.beginTransaction();
+
+    // 1️⃣ check if phone exists in contacts
+    let contact = await contactsModel.getContactByPhone(conn, phone);
+
+    let contactId;
+
+    if (!contact) {
+      // 2️⃣ insert into contacts
+      contactId = await contactsModel.insertContacts(conn, phone);
+    } else {
+      contactId = contact.id;
+    }
+
+    // 3️⃣ check if already exists for this user
+    const exists = await contactsModel.userContactExists(conn, userId, contactId);
+
+    if (exists) {
+      await conn.rollback();
+      return "ALREADY_EXISTS";
+    }
+
+    // 4️⃣ insert into user_contacts
+    await contactsModel.insertUserContacts(conn, userId, contactId, display_name);
+
+    await conn.commit();
+
+    return contactId;
+
+  } catch (err) {
+
+    await conn.rollback();
+    throw err;
+
+  } finally {
+
+    conn.release();
+
+  }
+};
+
+exports.changeBlock=async(userId,contactId,newBlock)=>{
+  return contactsModel.changeBlock(userId,contactId,newBlock)
+}

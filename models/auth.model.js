@@ -24,8 +24,8 @@ exports.insertOrGetContact = async (conn, phone) => {
 
 exports.linkUserContact = async (conn, userId, contactId, displayName) => {
   await conn.query(
-    `INSERT IGNORE INTO user_contacts (user_id, contact_id, display_name)
-     VALUES (?, ?, ?)`,
+    `INSERT IGNORE INTO user_contacts (user_id, contact_id, display_name,block)
+     VALUES (?, ?, ?,'false')`,
     [userId, contactId, displayName || null]
   );
 };
