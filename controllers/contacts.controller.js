@@ -99,3 +99,15 @@ exports.changeBlock = async (req, res) => {
 
   }
 };
+
+exports.getFullContacts = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const contacts = await contactsService.getFullContacts(userId);
+
+    res.json({ contacts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

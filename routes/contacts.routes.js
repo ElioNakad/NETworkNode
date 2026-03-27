@@ -7,5 +7,5 @@ router.get("/", auth, contactsController.getContacts);
 router.post("/resync",auth,contactsController.resyncContacts)
 router.post("/addcontact", auth, contactsController.addContact);
 router.put("/change-block", auth, contactsController.changeBlock);
-
+router.get("/full", auth, contactsController.getFullContacts);
 module.exports = router;

@@ -133,3 +133,34 @@ exports.addContact = async (userId, phone, display_name) => {
 exports.changeBlock=async(userId,contactId,newBlock)=>{
   return contactsModel.changeBlock(userId,contactId,newBlock)
 }
+
+exports.getFullContacts = async (userId) => {
+  const contacts = await contactsModel.fetchContacts(userId);
+
+  const descriptionService = require("./description.service");
+
+  const enriched = await Promise.all(
+    contacts.map(async (c) => {
+      try {
+        const [manual, defaults, privates] = await Promise.all([
+          descriptionService.getDescriptions(userId, c.contact_id),
+          descriptionService.getDefaultDescriptionsForContact(userId, c.phone),
+          descriptionService.getPrivateDescriptions(userId, c.contact_id),
+        ]);
+
+        return {
+          ...c,
+          labels: [
+            ...(manual || []),
+            ...(defaults || []),
+            ...(privates || []),
+          ].map((d) => d.label.toLowerCase()),
+        };
+      } catch {
+        return { ...c, labels: [] };
+      }
+    })
+  );
+
+  return enriched;
+};
