@@ -114,6 +114,17 @@ exports.addContact = async (userId, phone, display_name) => {
     // 4️⃣ insert into user_contacts
     await contactsModel.insertUserContacts(conn, userId, contactId, display_name);
 
+    await embeddingService.createProfileSnapshotForSignup(
+      conn,
+      userId,
+      contactId,
+      {
+        displayName: display_name,
+        phone,
+        defaultLabel: null
+      }
+    );
+
     await conn.commit();
 
     return contactId;
