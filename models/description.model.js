@@ -1,40 +1,42 @@
 const db = require("../config/db");
 
-exports.fetchContactDescriptions= async (userId,contactId)=>{
-    const [rows] = await db.query(
-      `
-      SELECT
-        ucd.id,
-        ucd.label,
-        ucd.description
-      FROM user_contact_descriptions ucd
-      JOIN user_contacts uc
-       ON ucd.user_contact_id = uc.id
-      WHERE uc.user_id = ?
+exports.fetchContactDescriptions = async (userId, contactId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      ucd.id,
+      ucd.label,
+      ucd.description
+    FROM user_contact_descriptions ucd
+    JOIN user_contacts uc
+      ON ucd.user_contact_id = uc.id
+    WHERE uc.user_id = ?
       AND uc.contact_id = ?;
-      `,
-      [userId,contactId]
-    );
-  return rows
-}
+    `,
+    [userId, contactId]
+  );
 
-exports.fetchPrivateDescriptions= async (userId,contactId)=>{
-    const [rows] = await db.query(
-      `
-      SELECT
-        ucd.id,
-        ucd.label,
-        ucd.description
-      FROM private_descriptions ucd
-      JOIN user_contacts uc
-       ON ucd.user_contact_id = uc.id
-      WHERE uc.user_id = ?
+  return rows;
+};
+
+exports.fetchPrivateDescriptions = async (userId, contactId) => {
+  const [rows] = await db.query(
+    `
+    SELECT
+      ucd.id,
+      ucd.label,
+      ucd.description
+    FROM private_descriptions ucd
+    JOIN user_contacts uc
+      ON ucd.user_contact_id = uc.id
+    WHERE uc.user_id = ?
       AND uc.contact_id = ?;
-      `,
-      [userId,contactId]
-    );
-  return rows
-}
+    `,
+    [userId, contactId]
+  );
+
+  return rows;
+};
 
 exports.insertContactDescriptions = async (
   userContactId,
@@ -46,7 +48,6 @@ exports.insertContactDescriptions = async (
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Insert description
     const [result] = await conn.query(
       `
       INSERT INTO user_contact_descriptions
@@ -56,7 +57,18 @@ exports.insertContactDescriptions = async (
       [userContactId, label, description]
     );
 
-    // 2️⃣ Mark embedding as dirty
+    const [embeddingRows] = await conn.query(
+      `
+      SELECT uce.id
+      FROM user_contact_embeddings uce
+      JOIN user_contacts uc
+        ON uc.user_id = uce.user_id
+       AND uc.contact_id = uce.contact_id
+      WHERE uc.id = ?
+      `,
+      [userContactId]
+    );
+
     await conn.query(
       `
       UPDATE user_contact_embeddings uce
@@ -70,7 +82,10 @@ exports.insertContactDescriptions = async (
     );
 
     await conn.commit();
-    return result.insertId;
+    return {
+      id: result.insertId,
+      embeddingIds: embeddingRows.map((row) => row.id),
+    };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -79,14 +94,12 @@ exports.insertContactDescriptions = async (
   }
 };
 
-
 exports.insertDefaultDescriptions = async (users_id, label, description) => {
   const conn = await db.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Insert default description
     const [result] = await conn.query(
       `
       INSERT INTO default_description (users_id, label, description)
@@ -95,7 +108,19 @@ exports.insertDefaultDescriptions = async (users_id, label, description) => {
       [users_id, label, description]
     );
 
-    // 2️⃣ Mark embeddings dirty where THIS user appears in others' contacts
+    const [embeddingRows] = await conn.query(
+      `
+      SELECT uce.id
+      FROM user_contact_embeddings uce
+      JOIN users u              ON u.id = ?
+      JOIN contacts c           ON c.phone = u.phone
+      JOIN user_contacts uc     ON uc.contact_id = c.id
+                               AND uc.user_id = uce.user_id
+                               AND uc.contact_id = uce.contact_id
+      `,
+      [users_id]
+    );
+
     await conn.query(
       `
       UPDATE user_contact_embeddings uce
@@ -110,8 +135,10 @@ exports.insertDefaultDescriptions = async (users_id, label, description) => {
     );
 
     await conn.commit();
-    return result.insertId;
-
+    return {
+      id: result.insertId,
+      embeddingIds: embeddingRows.map((row) => row.id),
+    };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -120,19 +147,18 @@ exports.insertDefaultDescriptions = async (users_id, label, description) => {
   }
 };
 
-
-exports.fetchDefaultDescriptions= async (userId)=>{
+exports.fetchDefaultDescriptions = async (userId) => {
   const [rows] = await db.query(
-      `
-      SELECT
-        label,description,id
-      FROM default_description
-      WHERE users_id=?
-      `,
-      [userId]
-    );
-  return rows
-}
+    `
+    SELECT label, description, id
+    FROM default_description
+    WHERE users_id = ?
+    `,
+    [userId]
+  );
+
+  return rows;
+};
 
 exports.fetchDefaultDescriptionsForContact = async (viewerUserId, phone) => {
   const [rows] = await db.query(
@@ -154,14 +180,12 @@ exports.fetchDefaultDescriptionsForContact = async (viewerUserId, phone) => {
   return rows;
 };
 
-
 exports.deleteManualDescription = async (id) => {
   const conn = await db.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Get user_contact_id BEFORE delete
     const [[row]] = await conn.query(
       `SELECT user_contact_id FROM user_contact_descriptions WHERE id = ?`,
       [id]
@@ -174,13 +198,23 @@ exports.deleteManualDescription = async (id) => {
 
     const userContactId = row.user_contact_id;
 
-    // 2️⃣ Delete description
+    const [embeddingRows] = await conn.query(
+      `
+      SELECT uce.id
+      FROM user_contact_embeddings uce
+      JOIN user_contacts uc
+        ON uc.user_id = uce.user_id
+       AND uc.contact_id = uce.contact_id
+      WHERE uc.id = ?
+      `,
+      [userContactId]
+    );
+
     const [result] = await conn.query(
       `DELETE FROM user_contact_descriptions WHERE id = ?`,
       [id]
     );
 
-    // 3️⃣ Mark embedding dirty
     await conn.query(
       `
       UPDATE user_contact_embeddings uce
@@ -194,8 +228,10 @@ exports.deleteManualDescription = async (id) => {
     );
 
     await conn.commit();
-    return result.affectedRows;
-
+    return {
+      affectedRows: result.affectedRows,
+      embeddingIds: embeddingRows.map((row) => row.id),
+    };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -204,14 +240,12 @@ exports.deleteManualDescription = async (id) => {
   }
 };
 
-
 exports.deletePrivateDescription = async (id) => {
   const conn = await db.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Get user_contact_id BEFORE delete
     const [[row]] = await conn.query(
       `SELECT user_contact_id FROM private_descriptions WHERE id = ?`,
       [id]
@@ -222,9 +256,6 @@ exports.deletePrivateDescription = async (id) => {
       return 0;
     }
 
-    const userContactId = row.user_contact_id;
-
-    // 2️⃣ Delete description
     const [result] = await conn.query(
       `DELETE FROM private_descriptions WHERE id = ?`,
       [id]
@@ -232,7 +263,6 @@ exports.deletePrivateDescription = async (id) => {
 
     await conn.commit();
     return result.affectedRows;
-
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -241,14 +271,12 @@ exports.deletePrivateDescription = async (id) => {
   }
 };
 
-
 exports.deleteDefaultDescription = async (id) => {
   const conn = await db.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Get users_id BEFORE delete
     const [[row]] = await conn.query(
       `SELECT users_id FROM default_description WHERE id = ?`,
       [id]
@@ -261,13 +289,24 @@ exports.deleteDefaultDescription = async (id) => {
 
     const usersId = row.users_id;
 
-    // 2️⃣ Delete default description
+    const [embeddingRows] = await conn.query(
+      `
+      SELECT uce.id
+      FROM user_contact_embeddings uce
+      JOIN users u          ON u.id = ?
+      JOIN contacts c       ON c.phone = u.phone
+      JOIN user_contacts uc ON uc.contact_id = c.id
+                           AND uc.user_id = uce.user_id
+                           AND uc.contact_id = uce.contact_id
+      `,
+      [usersId]
+    );
+
     const [result] = await conn.query(
       `DELETE FROM default_description WHERE id = ?`,
       [id]
     );
 
-    // 3️⃣ Mark embeddings dirty where this user appears in contacts
     await conn.query(
       `
       UPDATE user_contact_embeddings uce
@@ -282,8 +321,10 @@ exports.deleteDefaultDescription = async (id) => {
     );
 
     await conn.commit();
-    return result.affectedRows;
-
+    return {
+      affectedRows: result.affectedRows,
+      embeddingIds: embeddingRows.map((row) => row.id),
+    };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -302,7 +343,6 @@ exports.insertPrivateDescription = async (
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Insert description
     const [result] = await conn.query(
       `
       INSERT INTO private_descriptions
@@ -311,8 +351,6 @@ exports.insertPrivateDescription = async (
       `,
       [userContactId, label, description]
     );
-
-    
 
     await conn.commit();
     return result.insertId;

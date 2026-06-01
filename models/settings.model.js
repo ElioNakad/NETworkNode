@@ -54,6 +54,17 @@ exports.insertUserCV = async (userId, cvText) => {
       [userId, cvText]
     );
 
+    const [embeddingRows] = await conn.query(
+      `
+      SELECT uce.id
+      FROM user_contact_embeddings uce
+      JOIN contacts c ON c.id = uce.contact_id
+      JOIN users u ON u.phone = c.phone
+      WHERE u.id = ?
+      `,
+      [userId]
+    );
+
     await conn.query(
       `
       UPDATE user_contact_embeddings uce
@@ -66,6 +77,9 @@ exports.insertUserCV = async (userId, cvText) => {
     );
 
     await conn.commit();
+    return {
+      embeddingIds: embeddingRows.map((row) => row.id),
+    };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -84,6 +98,17 @@ exports.updateUserCV = async (userId, cvText) => {
       [cvText, userId]
     );
 
+    const [embeddingRows] = await conn.query(
+      `
+      SELECT uce.id
+      FROM user_contact_embeddings uce
+      JOIN contacts c ON c.id = uce.contact_id
+      JOIN users u ON u.phone = c.phone
+      WHERE u.id = ?
+      `,
+      [userId]
+    );
+
     await conn.query(
       `
       UPDATE user_contact_embeddings uce
@@ -96,6 +121,9 @@ exports.updateUserCV = async (userId, cvText) => {
     );
 
     await conn.commit();
+    return {
+      embeddingIds: embeddingRows.map((row) => row.id),
+    };
   } catch (err) {
     await conn.rollback();
     throw err;

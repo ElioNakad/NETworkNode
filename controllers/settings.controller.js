@@ -2,6 +2,9 @@ const settingService = require("../services/settings.service");
 const bcrypt = require("bcrypt");
 const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
+const {
+  triggerDirtyContactVectorRebuild,
+} = require("../services/vectorRebuild.service");
 
 exports.fetchUser = async (req, res) => {
   try {
@@ -88,17 +91,9 @@ exports.updateCV = async (req, res) => {
       });
     }
 
-    await settingService.saveUserCV(userId, cvText);
+    const result = await settingService.saveUserCV(userId, cvText);
 
-    fetch("http://127.0.0.1:5001/rebuild-vectors", {
-      method: "POST"
-    }).then(res => {
-      if (!res.ok) {
-        console.log("Vector rebuild failed with status:", res.status);
-      }
-    }).catch(err => {
-      console.log("Vector rebuild error:", err.message);
-    });
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json({
       success: true,

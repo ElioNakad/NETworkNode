@@ -10,6 +10,7 @@ exports.resyncContacts = async (allContacts, userId) => {
 
   try {
     await conn.beginTransaction();
+    const embeddingIds = [];
 
     for (const contact of allContacts) {
     const { phone, displayName } = contact;
@@ -51,6 +52,17 @@ exports.resyncContacts = async (allContacts, userId) => {
             defaultLabel: null
           }
         );
+
+        const [[embeddingRow]] = await conn.query(
+          `
+          SELECT id
+          FROM user_contact_embeddings
+          WHERE user_id = ? AND contact_id = ?
+          `,
+          [userId, contactId]
+        );
+
+        if (embeddingRow) embeddingIds.push(embeddingRow.id);
       } else {
          // 🔄 Update display name
         const affected = await contactsModel.updateDisplayName(
@@ -68,12 +80,23 @@ exports.resyncContacts = async (allContacts, userId) => {
             contactId,
             displayName
           );
+
+          const [[embeddingRow]] = await conn.query(
+            `
+            SELECT id
+            FROM user_contact_embeddings
+            WHERE user_id = ? AND contact_id = ?
+            `,
+            [userId, contactId]
+          );
+
+          if (embeddingRow) embeddingIds.push(embeddingRow.id);
         }
       }
     }
 
     await conn.commit();
-    return { success: true };
+    return { success: true, embeddingIds };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -125,9 +148,21 @@ exports.addContact = async (userId, phone, display_name) => {
       }
     );
 
+    const [[embeddingRow]] = await conn.query(
+      `
+      SELECT id
+      FROM user_contact_embeddings
+      WHERE user_id = ? AND contact_id = ?
+      `,
+      [userId, contactId]
+    );
+
     await conn.commit();
 
-    return contactId;
+    return {
+      contactId,
+      embeddingIds: embeddingRow ? [embeddingRow.id] : [],
+    };
 
   } catch (err) {
 

@@ -1,4 +1,7 @@
 const contactsService = require("../services/contacts.service");
+const {
+  triggerDirtyContactVectorRebuild,
+} = require("../services/vectorRebuild.service");
 
 exports.getContacts = async (req, res) => {
   try{
@@ -23,6 +26,8 @@ exports.resyncContacts = async (req, res) => {
       allContacts,
       req.user.userId
     );
+
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json(result);
   } catch (err) {
@@ -49,9 +54,11 @@ exports.addContact = async (req, res) => {
       });
     }
 
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
+
     res.json({
       message: "Contact added successfully",
-      contact_id: result
+      contact_id: result.contactId ?? result
     });
 
   } catch (err) {

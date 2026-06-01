@@ -1,4 +1,7 @@
 const authService = require("../services/auth.service");
+const {
+  triggerDirtyContactVectorRebuild,
+} = require("../services/vectorRebuild.service");
 
 /*exports.signup = async (req, res) => {
   try {
@@ -44,7 +47,9 @@ exports.verifyOtpAndSignup = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    await authService.verifyOtpAndSignup(email, otp);
+    const result = await authService.verifyOtpAndSignup(email, otp);
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
+
     res.json({ message: "Account created successfully" });
   } catch (err) {
     console.error(err);

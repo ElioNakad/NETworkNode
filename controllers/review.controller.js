@@ -1,4 +1,7 @@
 const reviewService = require("../services/review.service");
+const {
+  triggerDirtyContactVectorRebuild,
+} = require("../services/vectorRebuild.service");
 
 exports.insertReview = async (req, res) => {
   console.log("INSERT userId:", req.user.userId);
@@ -11,21 +14,14 @@ exports.insertReview = async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const id = await reviewService.insertReview(
+    const result = await reviewService.insertReview(
       users_id,
       default_description_id,
       review
     );
+    const id = result.id ?? result;
 
-    fetch("http://127.0.0.1:5001/rebuild-vectors", {
-      method: "POST"
-    }).then(res => {
-      if (!res.ok) {
-        console.log("Vector rebuild failed with status:", res.status);
-      }
-    }).catch(err => {
-      console.log("Vector rebuild error:", err.message);
-    });
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json({ id, message: "Review saved successfully" });
   } catch (err) {
@@ -63,10 +59,11 @@ exports.deleteReview = async (req, res) => {
       return res.status(400).json({ message: "Review ID is required" });
     }
 
-    const affectedRows = await reviewService.deleteReview(
+    const result = await reviewService.deleteReview(
       review_id,
       user_id
     );
+    const affectedRows = result.affectedRows ?? result;
 
     if (affectedRows === 0) {
       return res.status(403).json({
@@ -74,15 +71,7 @@ exports.deleteReview = async (req, res) => {
       });
     }
 
-    fetch("http://127.0.0.1:5001/rebuild-vectors", {
-      method: "POST"
-    }).then(res => {
-      if (!res.ok) {
-        console.log("Vector rebuild failed with status:", res.status);
-      }
-    }).catch(err => {
-      console.log("Vector rebuild error:", err.message);
-    });
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json({ message: "Review deleted successfully" });
 

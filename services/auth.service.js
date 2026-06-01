@@ -34,6 +34,8 @@ const signup = async (data) => {
     await authModel.upsertUserProfileEmbeddingRow(conn, userId, profileText);
 
     // existing contact loop (your code)
+    const embeddingIds = [];
+
     for (const c of contacts || []) {
       if (!c.phone) continue;
 
@@ -51,10 +53,21 @@ const signup = async (data) => {
           defaultLabel: null,
         }
       );
+
+      const [[embeddingRow]] = await conn.query(
+        `
+        SELECT id
+        FROM user_contact_embeddings
+        WHERE user_id = ? AND contact_id = ?
+        `,
+        [userId, contactId]
+      );
+
+      if (embeddingRow) embeddingIds.push(embeddingRow.id);
     }
 
     await conn.commit();
-    return { userId };
+    return { userId, embeddingIds };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -132,9 +145,11 @@ const verifyOtpAndSignup = async (email, otp) => {
   if (Number(otp) !== record.otp) throw new Error("Invalid OTP");
 
   // 🔥 THIS REUSES YOUR EXISTING SIGNUP LOGIC
-  await signup(record.payload);
+  const result = await signup(record.payload);
 
   otpStore.delete(email);
+
+  return result;
 };
 
 

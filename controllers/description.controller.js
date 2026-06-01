@@ -1,4 +1,7 @@
 const descriptionService = require("../services/description.service");
+const {
+  triggerDirtyContactVectorRebuild,
+} = require("../services/vectorRebuild.service");
 
 exports.getDescriptions = async (req, res) => {
   try {
@@ -74,11 +77,14 @@ exports.insertDescriptions = async (req, res) => {
       return res.status(400).json({ message: "Missing data" });
     }
 
-    const id = await descriptionService.insertDescriptions(
+    const result = await descriptionService.insertDescriptions(
       user_contact_id,
       label,
       description
     );
+    const id = result.id ?? result;
+
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json({ id, message: "Description added successfully" });
   } catch (err) {
@@ -117,22 +123,14 @@ exports.insertDefaultDescriptions = async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    const id = await descriptionService.insertDefaultDescriptions(
+    const result = await descriptionService.insertDefaultDescriptions(
       users_id,
       label,
       description
     );
+    const id = result.id ?? result;
 
-
-    fetch("http://127.0.0.1:5001/rebuild-vectors", {
-      method: "POST"
-    }).then(res => {
-      if (!res.ok) {
-        console.log("Vector rebuild failed with status:", res.status);
-      }
-    }).catch(err => {
-      console.log("Vector rebuild error:", err.message);
-    });
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json({ id, message: "Default description saved" });
   } catch (err) {
@@ -146,7 +144,11 @@ exports.deleteManualDescription=async(req,res)=>{
     if (!id) {
       return res.status(400).json({ message: "Missing data" });
     }
-    const results=await descriptionService.deleteManualDescription(id);
+    const result=await descriptionService.deleteManualDescription(id);
+    const results = result.affectedRows ?? result;
+
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
+
     res.json({ results, message: "Deleted successfully" });
   }catch (err) {
     res.status(500).json({ message: err.message });
@@ -172,17 +174,10 @@ exports.deleteDefaultDescription=async(req,res)=>{
     if (!id) {
       return res.status(400).json({ message: "Missing data" });
     }
-    const results=await descriptionService.deleteDefaultDescription(id);
+    const result=await descriptionService.deleteDefaultDescription(id);
+    const results = result.affectedRows ?? result;
 
-    fetch("http://127.0.0.1:5001/rebuild-vectors", {
-      method: "POST"
-    }).then(res => {
-      if (!res.ok) {
-        console.log("Vector rebuild failed with status:", res.status);
-      }
-    }).catch(err => {
-      console.log("Vector rebuild error:", err.message);
-    });
+    triggerDirtyContactVectorRebuild({ embeddingIds: result.embeddingIds });
 
     res.json({ results, message: "Deleted successfully" });
   }catch (err) {

@@ -12,12 +12,10 @@ const saveUserCV = async (userId, cvText) => {
   const existingCV = await settingsModel.getUserCV(userId);
 
   if (existingCV) {
-    await settingsModel.updateUserCV(userId, cvText);
-  } else {
-    await settingsModel.insertUserCV(userId, cvText);
+    return settingsModel.updateUserCV(userId, cvText);
   }
 
-  return true;
+  return settingsModel.insertUserCV(userId, cvText);
 };
 
 const changeRefer=async(newPrivacy,userId)=>{
